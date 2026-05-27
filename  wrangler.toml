@@ -1,0 +1,4 @@
+# wrangler.toml 适配你当前的 worker.js
+name = "calendar-notice-static"
+main = "worker.js"
+compatibility_date = "2025-05-28"
