@@ -7,6 +7,13 @@
 
 import Foundation
 
+extension String {
+    /// 取文件/目录路径的最后一段（NSString 实现）
+    var lastPathComponent: String {
+        (self as NSString).lastPathComponent
+    }
+}
+
 /// 探测到的一个 Trae 容器（Bundle 或 Data）
 struct TraeContainer: Identifiable, Equatable {
     let id: String                 // UUID，用于唯一标识
