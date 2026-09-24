@@ -1,0 +1,28 @@
+name: TraeResetiOS
+options:
+  bundleIdPrefix: com.loxi
+  deploymentTarget:
+    iOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    TARGETED_DEVICE_FAMILY: "1"
+    GENERATE_INFOPLIST_FILE: NO
+targets:
+  TraeResetiOS:
+    type: application
+    platform: iOS
+    sources:
+      - Sources/TraeResetiOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loxi.traereset
+        INFOPLIST_FILE: Sources/TraeResetiOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Sources/TraeResetiOS/TraeResetiOS.entitlements
+        CODE_SIGN_STYLE: Manual
+        DEVELOPMENT_TEAM: ""
+        PRODUCT_NAME: TraeResetiOS
+        # 构建阶段不签名（产物再由 CI 用 ad-hoc + entitlements 重签）
+        CODE_SIGNING_ALLOWED: NO
+        CODE_SIGNING_REQUIRED: NO
