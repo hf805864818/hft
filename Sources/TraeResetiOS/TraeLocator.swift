@@ -52,8 +52,8 @@ enum TraeLocator {
         // 1) 遍历 Bundle 容器，匹配 Trae，记录 UUID 与 bundle id
         for root in bundleRoots {
             let fm = FileManager.default
-            guard let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? [] ,
-                  !uuids.isEmpty else { continue }
+            let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? []
+            guard !uuids.isEmpty else { continue }
             for uuid in uuids {
                 guard isUUIDish(uuid) else { continue }
                 guard let app = probeBundleInfo(in: root + "/" + uuid),
@@ -70,7 +70,8 @@ enum TraeLocator {
         // 2) 用同一 UUID 找 Data 容器
         for root in dataRoots {
             let fm = FileManager.default
-            guard let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? [] else { continue }
+            let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? []
+            guard !uuids.isEmpty else { continue }
             for uuid in uuids {
                 guard isUUIDish(uuid), found[uuid] != nil else { continue }
                 found[uuid]?.dataDir = root + "/" + uuid
@@ -156,7 +157,7 @@ enum TraeLocator {
               let obj = try? JSONSerialization.jsonObject(with: data),
               let root = obj as? [String: Any] else { return }
         // 顶层 + telemetry 子层 都找
-        let targets: [(String, Any)] = root.count <= 400 ? Array(root.map { ($0.key, $0.value) }) : []
+        var targets: [(String, Any)] = root.count <= 400 ? Array(root.map { ($0.key, $0.value) }) : []
         if let telemetry = root["telemetry"] as? [String: Any] {
             targets.append(contentsOf: telemetry.map { ("telemetry.\($0.key)", $0.value) })
         }
@@ -177,7 +178,11 @@ enum TraeLocator {
 
     /// 重新生成 64 位十六进制（telemetry.machineId 形态）
     static func newHex64() -> String {
-        (0..<64).map { _ in "0123456789abcdef"[Int.random(in: 0..<16)] }.joined()
+        let hex = Array("0123456789abcdef")
+        var out = ""
+        out.reserveCapacity(64)
+        for _ in 0..<64 { out.append(hex.randomElement()!) }
+        return out
     }
     /// 重新生成 SQM GUID {XXXXXXXX-...} 形态
     static func newSQM() -> String { "{" + UUID().uuidString.uppercased() + "}" }
