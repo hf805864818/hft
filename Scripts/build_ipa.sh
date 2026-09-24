@@ -28,7 +28,7 @@ mkdir -p "$APP"
 
 swiftc \
   -sdk "$SDK" \
-  -target arm64-apple-ios14.0 \
+  -target arm64-apple-ios16.0 \
   -parse-as-library \
   -O \
   -framework SwiftUI -framework UIKit \

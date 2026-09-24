@@ -109,7 +109,7 @@ struct ContentView: View {
                 Text(selected != nil ? "该容器内未检测到 device id 文件。" : "请先选择容器")
                     .font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(fields) { f in
+                ForEach(fields, id: \.id) { f in
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(f.display).font(.caption).foregroundColor(.blue)
@@ -173,7 +173,7 @@ struct ContentView: View {
             if log.isEmpty {
                 Text("还没有操作记录").font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(log) { e in
+                ForEach(log, id: \.id) { e in
                     HStack(alignment: .top, spacing: 6) {
                         Text(timeStr(e.time)).font(.caption2).foregroundColor(.secondary)
                         Text(prefix(e.level) + " " + e.text)
@@ -191,7 +191,7 @@ struct ContentView: View {
     private func refresh() {
         containers = TraeLocator.locate()
         notice = ""
-        if let first = containers.first { selected = 0; scanFields() }
+        if !containers.isEmpty { selected = 0; scanFields() }
         else {
             selected = nil
             addLog(.warn, "未找到 Trae 容器。请确认本 App 以 no-sandbox 安装（TrollStore 安装时带 entitlements）。")
