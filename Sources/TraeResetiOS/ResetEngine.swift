@@ -40,7 +40,7 @@ enum ResetEngine {
         if fields.isEmpty && !dataDirExists(dataDir) {
             ok = false
             log.append("⚠️ 未在该容器内发现任何 device id 文件。iOS 版 Trae 可能用 Keychain / 服务端绑定。")
-            log.append("   请改用越狱终端运行 Scripts/probe_root.sh 进一步定位。")
+            log.append("   请改用越狱终端运行 Scripts/trae_cli.sh probe 进一步定位。")
         }
         return OpResult(ok, log)
     }
@@ -73,7 +73,7 @@ enum ResetEngine {
             for k in toDelete { obj.removeValue(forKey: k) }
             let newData = try? JSONSerialization.data(withJSONObject: obj,
                                                        options: [.prettyPrinted, .sortedKeys])
-            _ = newData?.write(to: URL(fileURLWithPath: path), atomically: true)
+            _ = try? newData?.write(to: URL(fileURLWithPath: path), options: .atomic)
             log.append("  删除凭证键: \(toDelete.count) 项 @ \(path.lastPathComponent)")
             removed += toDelete.count
         }
@@ -83,9 +83,14 @@ enum ResetEngine {
         for sub in ["", "/Network", "/Library/Cookies", "/Caches", "/Library/Application Support"] {
             for name in cookieNames {
                 let p = dataDir + sub + "/" + name
-                if fm.fileExists(atPath: p), fm.removeItem(atPath: p) {
-                    log.append("  删除: \(p.lastPathComponent) (@ \(sub))")
-                    removed += 1
+                if fm.fileExists(atPath: p) {
+                    do {
+                        try fm.removeItem(atPath: p)
+                        log.append("  删除: \(p.lastPathComponent) (@ \(sub))")
+                        removed += 1
+                    } catch {
+                        log.append("  删除失败 \(p.lastPathComponent): \(error.localizedDescription)")
+                    }
                 }
             }
         }
@@ -112,7 +117,7 @@ enum ResetEngine {
         }
 
         // 验证
-        log.append(contentsOf: verify(fields, dataDir: dataDir, into: log))
+        log.append(contentsOf: verify(fields, dataDir: dataDir))
         log.insert("  已重置 \(written) 项设备标识", at: 0)
         return OpResult(written > 0, log)
     }
@@ -123,7 +128,7 @@ enum ResetEngine {
         case .machineIdFile:
             try backup(f.filePath)
             let newId = UUID().uuidString
-            try newId.data(using: .utf8)?.write(to: URL(fileURLWithPath: f.filePath), atomically: true)
+            try newId.data(using: .utf8)?.write(to: URL(fileURLWithPath: f.filePath), options: .atomic)
             log.append("  \(f.filePath.lastPathComponent) -> \(newId)")
 
         case .telemetryJson:
@@ -134,15 +139,15 @@ enum ResetEngine {
             }
             try backup(f.filePath)
             let newValue = newValue(forKey: key, keyPath: f.key)
-            try setJSONValue(obj, keyPath: key, value: newValue)
+            try setJSONValue(&obj, keyPath: key, value: newValue)
             let out = try JSONSerialization.data(withJSONObject: obj, options: [.prettyPrinted])
-            _ = out.write(to: URL(fileURLWithPath: f.filePath), atomically: true)
+            try out.write(to: URL(fileURLWithPath: f.filePath), options: .atomic)
             log.append("  \(f.filePath.lastPathComponent) · \(key) -> \(String(newValue.prefix(20)))…")
 
         case .genericDeviceFile:
             try backup(f.filePath)
             let newId = UUID().uuidString
-            try newId.data(using: .utf8)?.write(to: URL(fileURLWithPath: f.filePath), atomically: true)
+            try newId.data(using: .utf8)?.write(to: URL(fileURLWithPath: f.filePath), options: .atomic)
             log.append("  \(f.filePath.lastPathComponent) -> \(newId)")
         }
     }
@@ -169,7 +174,7 @@ enum ResetEngine {
 
     // MARK: - 验证 / 备份 / 恢复
 
-    private static func verify(_ fields: [DeviceField], dataDir: String, into log: inout [String]) -> [String] {
+    private static func verify(_ fields: [DeviceField], dataDir: String) -> [String] {
         var out = [String]()
         for f in fields where f.kind == .machineIdFile {
             let v = (try? String(contentsOfFile: f.filePath, encoding: .utf8)) ?? ""
@@ -193,16 +198,19 @@ enum ResetEngine {
         var restored = 0
         let en = FileManager.default.enumerator(atPath: dataDir)
         if let en = en {
-            for item in en {
+            for case let item as String in en {
                 guard item.hasSuffix(".bak") else { continue }
                 let orig = String(item.dropLast(4))
                 let bakAbs = dataDir + "/" + item
                 let origAbs = dataDir + "/" + orig
                 if FileManager.default.fileExists(atPath: bakAbs) {
-                    try? FileManager.default.removeItem(atPath: origAbs)
-                    if FileManager.default.copyItem(atPath: bakAbs, toPath: origAbs) {
+                    do {
+                        _ = try? FileManager.default.removeItem(atPath: origAbs)
+                        try FileManager.default.copyItem(atPath: bakAbs, toPath: origAbs)
                         log.append("  已恢复: \(orig)")
                         restored += 1
+                    } catch {
+                        log.append("  恢复失败 \(orig): \(error.localizedDescription)")
                     }
                 }
             }
