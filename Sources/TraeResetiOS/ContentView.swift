@@ -73,27 +73,8 @@ struct ContentView: View {
                     .font(.caption).foregroundColor(.secondary)
                     .textSelection(.enabled)
             } else {
-                ForEach(containers.indices, id: \.self) { i in
-                    Button {
-                        selected = i
-                        scanFields()
-                    } label: {
-                        HStack {
-                            Circle().fill(selected == i ? Color.blue : Color.gray.opacity(0.4))
-                                .frame(width: 8, height: 8)
-                            VStack(alignment: .leading) {
-                                Text(containers[i].displayName ?? containers[i].bundleId ?? "未知")
-                                    .font(.callout)
-                                Text(containers[i].bundleId ?? containers[i].id)
-                                    .font(.caption2).foregroundColor(.secondary)
-                            }
-                            Spacer()
-                        }
-                        .padding(10)
-                        .background(selected == i ? Color.blue.opacity(0.08) : Color.gray.opacity(0.06))
-                        .cornerRadius(10)
-                    }
-                    .buttonStyle(.plain)
+                ForEach(containers) { c in
+                    containerRow(c)
                 }
             }
         }
@@ -109,18 +90,8 @@ struct ContentView: View {
                 Text(selected != nil ? "该容器内未检测到 device id 文件。" : "请先选择容器")
                     .font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(fields.indices, id: \.self) { i in
-                    let f = fields[i]
-                    HStack(alignment: .top) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(f.display).font(.caption).foregroundColor(.blue)
-                            Text(f.filePath.lastPathComponent)
-                                .font(.caption2).foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Text((f.currentValue ?? "").prefix(16) + "…")
-                            .font(.caption2.monospaced()).foregroundColor(.secondary)
-                    }
+                ForEach(fields) { f in
+                    fieldRow(f)
                 }
             }
             if !notice.isEmpty {
@@ -174,19 +145,56 @@ struct ContentView: View {
             if log.isEmpty {
                 Text("还没有操作记录").font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(log.indices, id: \.self) { i in
-                    let e = log[i]
-                    HStack(alignment: .top, spacing: 6) {
-                        Text(timeStr(e.time)).font(.caption2).foregroundColor(.secondary)
-                        Text(prefix(e.level) + " " + e.text)
-                            .font(.caption).textSelection(.enabled)
-                    }
+                ForEach(log) { e in
+                    logRow(e)
                 }
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.white).cornerRadius(12).shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+    }
+
+    // MARK: - 行视图
+    private func containerRow(_ c: TraeContainer) -> some View {
+        let idx = containers.firstIndex { $0.id == c.id }
+        let isSel = selected == idx
+        return Button {
+            selected = idx
+            scanFields()
+        } label: {
+            HStack {
+                Circle().fill(isSel ? Color.blue : Color.gray.opacity(0.4))
+                    .frame(width: 8, height: 8)
+                VStack(alignment: .leading) {
+                    Text(c.displayName ?? c.bundleId ?? "未知").font(.callout)
+                    Text(c.bundleId ?? c.id).font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+            }
+            .padding(10)
+            .background(isSel ? Color.blue.opacity(0.08) : Color.gray.opacity(0.06))
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func fieldRow(_ f: DeviceField) -> some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(f.display).font(.caption).foregroundColor(.blue)
+                Text(f.filePath.lastPathComponent).font(.caption2).foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(String((f.currentValue ?? "").prefix(16)) + "…").font(.caption2.monospaced()).foregroundColor(.secondary)
+        }
+    }
+
+    private func logRow(_ e: LogEntry) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(timeStr(e.time)).font(.caption2).foregroundColor(.secondary)
+            Text(prefix(e.level) + " " + e.text).font(.caption).textSelection(.enabled)
+        }
     }
 
     // MARK: - 逻辑
