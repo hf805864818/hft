@@ -18,7 +18,8 @@ BUILD="${BUILD_NUMBER:-1}"
 
 echo "==> 1/5 注入 build number: $BUILD"
 plutil -replace CFBundleVersion -string "$BUILD" "$INFO"
-echo "    CFBundleVersion -> $BUILD"
+plutil -replace CFBundleShortVersionString -string "1.0.$BUILD" "$INFO"
+echo "    CFBundleVersion -> $BUILD, CFBundleShortVersionString -> 1.0.$BUILD"
 
 echo "==> 2/5 swiftc 编译 (arm64, iOS 14+)"
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"
