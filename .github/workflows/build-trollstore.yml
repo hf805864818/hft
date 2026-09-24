@@ -13,12 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Xcodegen (fallback)
-        run: |
-          if ! command -v xcodegen >/dev/null 2>&1; then
-            brew install xcodegen || true
-          fi
-
       - name: Build & sign IPA
         env:
           BUILD_NUMBER: ${{ github.run_number }}
