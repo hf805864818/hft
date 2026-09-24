@@ -109,7 +109,8 @@ struct ContentView: View {
                 Text(selected != nil ? "该容器内未检测到 device id 文件。" : "请先选择容器")
                     .font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(fields, id: \.id) { f in
+                ForEach(fields.indices, id: \.self) { i in
+                    let f = fields[i]
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(f.display).font(.caption).foregroundColor(.blue)
@@ -173,7 +174,8 @@ struct ContentView: View {
             if log.isEmpty {
                 Text("还没有操作记录").font(.caption).foregroundColor(.secondary)
             } else {
-                ForEach(log, id: \.id) { e in
+                ForEach(log.indices, id: \.self) { i in
+                    let e = log[i]
                     HStack(alignment: .top, spacing: 6) {
                         Text(timeStr(e.time)).font(.caption2).foregroundColor(.secondary)
                         Text(prefix(e.level) + " " + e.text)
