@@ -49,28 +49,26 @@ enum TraeLocator {
     static func locate() -> [TraeContainer] {
         var found = [String: TraeContainer]() // uuid -> container
 
-        // 1) 遍历 Bundle 容器，匹配 Trae，记录 UUID 与 bundle id
+        // 1) 收集所有有 Info.plist 的 Bundle 容器（不再只筛 Trae，便于诊断）
         for root in bundleRoots {
             let fm = FileManager.default
             let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? []
             guard !uuids.isEmpty else { continue }
             for uuid in uuids {
                 guard isUUIDish(uuid) else { continue }
-                guard let app = probeBundleInfo(in: root + "/" + uuid),
-                      matchesTrae(bundleId: app.bundleId, name: app.name) else { continue }
-                var c = found[uuid] ?? TraeContainer(id: uuid,
-                                                     bundleId: app.bundleId,
-                                                     displayName: app.name,
-                                                     dataDir: nil, bundleDir: nil)
-                c.bundleDir = root + "/" + uuid
-                found[uuid] = c
+                if found[uuid] != nil { continue }
+                guard let app = probeBundleInfo(in: root + "/" + uuid) else { continue }
+                let likely = matchesTrae(bundleId: app.bundleId, name: app.name)
+                found[uuid] = TraeContainer(id: uuid, bundleId: app.bundleId,
+                                             displayName: app.name, dataDir: nil,
+                                             bundleDir: root + "/" + uuid,
+                                             isLikelyTrae: likely)
             }
         }
 
-        // 2) 用同一 UUID 找 Data 容器
+        // 2) 用同一 UUID 补 Data 容器路径
         for root in dataRoots {
-            let fm = FileManager.default
-            let uuids = (try? fm.contentsOfDirectory(atPath: root)) ?? []
+            let uuids = (try? FileManager.default.contentsOfDirectory(atPath: root)) ?? []
             guard !uuids.isEmpty else { continue }
             for uuid in uuids {
                 guard isUUIDish(uuid), found[uuid] != nil else { continue }
@@ -78,9 +76,36 @@ enum TraeLocator {
             }
         }
 
-        // 3) 若一个都没按名字匹配到，退化为"有 Data 容器但 bundle 未匹配"的容器也列出
-        //    （便于用户手动挑选 / 探测）
-        return Array(found.values)
+        // 3) 排序：疑似 Trae 在前，再按名称
+        return found.values.sorted { a, b in
+            if a.isLikelyTrae != b.isLikelyTrae { return a.isLikelyTrae }
+            return (a.displayName ?? a.bundleId ?? "").localizedCaseInsensitiveCompare(
+                     b.displayName ?? b.bundleId ?? "") == .orderedAscending
+        }
+    }
+
+    /// 列出 dataDir 下文件树（限深/限数），用于诊断
+    static func fileTree(dataDir: String, maxDepth: Int = 5, maxFiles: Int = 80) -> [String] {
+        guard FileManager.default.fileExists(atPath: dataDir) else {
+            return ["(目录不存在或无权限: \(dataDir))"]
+        }
+        var out = [String]()
+        let en = FileManager.default.enumerator(
+            at: URL(fileURLWithPath: dataDir),
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles])
+        guard let en = en else { return out }
+        let base = URL(fileURLWithPath: dataDir).path
+        let baseDepth = base.pathComponents.count
+        while let u = en.nextObject() as? URL {
+            if out.count >= maxFiles { out.append("...(已截断 \(maxFiles) 项)"); break }
+            let depth = u.pathComponents.count - baseDepth
+            if depth <= maxDepth {
+                out.append(u.path.replacingOccurrences(of: base + "/", with: ""))
+            }
+        }
+        if out.isEmpty { out.append("(空目录或无内容)") }
+        return out
     }
 
     struct BundleInfo {

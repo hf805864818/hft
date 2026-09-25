@@ -21,6 +21,7 @@ struct TraeContainer: Identifiable, Equatable {
     let displayName: String?        // CFBundleDisplayName / 名称
     var dataDir: String?            // 数据容器绝对路径
     var bundleDir: String?          // 代码包绝对路径
+    var isLikelyTrae: Bool = false  // 是否疑似 Trae（名字/bundle 命中）
 
     static func == (lhs: TraeContainer, rhs: TraeContainer) -> Bool {
         lhs.id == rhs.id

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @State private var agreed = false
@@ -63,16 +64,18 @@ struct ContentView: View {
     private var containerCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("检测到的 Trae 容器").font(.subheadline.bold())
+                Text("检测到的 App 容器").font(.subheadline.bold())
                 Spacer()
                 Button("刷新") { refresh() }.font(.caption)
             }
             if containers.isEmpty {
-                Text("未找到匹配 Trae 的容器。")
-                Text("可能原因：① App 未带 no-sandbox 权限 ② bundle id / 名称不匹配。")
-                    .font(.caption).foregroundColor(.secondary)
+                Text("未检测到任何 App 容器。")
+                Text("说明 no-sandbox 权限未生效（App 仍被限制在自己沙盒，读不到其它 App）。请在 TrollStore 重装并确认保留 entitlements，或改用越狱终端脚本。")
+                    .font(.caption).foregroundColor(.orange)
                     .textSelection(.enabled)
             } else {
+                Text("共 \(containers.count) 个容器，疑似 Trae 标 ★ 并排前。点选后查看其数据目录。")
+                    .font(.caption).foregroundColor(.secondary)
                 ForEach(containers) { c in
                     containerRow(c)
                 }
@@ -115,6 +118,7 @@ struct ContentView: View {
                 button("重置设备ID", .blue, disabled: disabled) { doResetDevice() }
                 button("恢复备份", .gray, disabled: disabled) { doRestore() }
             }
+            button("导出诊断（复制全部容器+文件树）", .green, disabled: busy) { exportDiagnosis() }
             if busy {
                 ProgressView().frame(maxWidth: .infinity)
             }
@@ -167,7 +171,12 @@ struct ContentView: View {
                 Circle().fill(isSel ? Color.blue : Color.gray.opacity(0.4))
                     .frame(width: 8, height: 8)
                 VStack(alignment: .leading) {
-                    Text(c.displayName ?? c.bundleId ?? "未知").font(.callout)
+                    HStack(spacing: 4) {
+                        if c.isLikelyTrae {
+                            Text("★").font(.caption2).foregroundColor(.orange)
+                        }
+                        Text(c.displayName ?? c.bundleId ?? "未知").font(.callout)
+                    }
                     Text(c.bundleId ?? c.id).font(.caption2).foregroundColor(.secondary)
                 }
                 Spacer()
@@ -218,7 +227,8 @@ struct ContentView: View {
         }
         fields = TraeLocator.scanDeviceFields(in: dataDir)
         if fields.isEmpty {
-            notice = "未在该容器内发现 device id 文件。iOS 版 Trae 或许用 Keychain / 服务端绑定——请配合越狱终端脚本探测。"
+            let tree = TraeLocator.fileTree(dataDir: dataDir, maxDepth: 5, maxFiles: 40)
+            notice = "未发现 device id 文件（可能存于 Keychain/服务端）。该容器文件树:\n" + tree.joined(separator: "\n")
         } else {
             notice = ""
         }
@@ -248,6 +258,22 @@ struct ContentView: View {
     }
 
     private func refreshResults() { scanFields() }
+
+    private func exportDiagnosis() {
+        var lines = ["== TraeReset iOS 诊断 build \(buildNumber) ==",
+                     "容器总数: \(containers.count)"]
+        for c in containers {
+            lines.append("\(c.isLikelyTrae ? "★" : " ") \(c.displayName ?? "?") | \(c.bundleId ?? "?") | data=\(c.dataDir ?? "nil")")
+        }
+        if let i = selected, i < containers.count {
+            let d = containers[i].dataDir ?? ""
+            lines.append("== 选中容器文件树: \(d) ==")
+            lines += TraeLocator.fileTree(dataDir: d, maxDepth: 5, maxFiles: 80)
+        }
+        let text = lines.joined(separator: "\n")
+        UIPasteboard.general.string = text
+        addLog(.info, "诊断已复制到剪贴板（\(text.count) 字），请粘贴发给助手")
+    }
 
     private func runBusy(_ body: @escaping () -> Void) {
         busy = true
