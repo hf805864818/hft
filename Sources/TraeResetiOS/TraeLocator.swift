@@ -96,7 +96,7 @@ enum TraeLocator {
             options: [.skipsHiddenFiles])
         guard let en = en else { return out }
         let base = URL(fileURLWithPath: dataDir).path
-        let baseDepth = base.pathComponents.count
+        let baseDepth = (dataDir as NSString).pathComponents.count
         while let u = en.nextObject() as? URL {
             if out.count >= maxFiles { out.append("...(已截断 \(maxFiles) 项)"); break }
             let depth = u.pathComponents.count - baseDepth
