@@ -9,6 +9,8 @@ jobs:
   build:
     name: macOS build + sign
     runs-on: macos-14     # macos-14 自带 Xcode，可编译 iOS
+    permissions:
+      contents: write     # 允许自动发 GitHub Release
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,3 +31,21 @@ jobs:
             TraeResetiOS-TrollStore.ipa
             dist/TraeResetiOS-b${{ github.run_number }}-TrollStore.ipa
           if-no-files-found: error
+
+      - name: Publish as downloadable Release (historical version)
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: TraeResetiOS b${{ github.run_number }}
+          body: |
+            自动构建产物（越狱版 TraeReset iOS）
+            - build: ${{ github.run_number }}
+            - 架构: arm64
+            - 权限: no-sandbox + platform-application
+            - 安装: 用 TrollStore（iOS 14–17.0）打开此 .ipa；iOS 18/26 用越狱终端跑 Scripts/trae_cli.sh
+          draft: false
+          prerelease: false
+          files: dist/TraeResetiOS-b${{ github.run_number }}-TrollStore.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
